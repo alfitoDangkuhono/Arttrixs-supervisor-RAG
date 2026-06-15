@@ -1,0 +1,5 @@
+tavily-python
+sentence-transformers
+psycopg2-binary
+apscheduler
+python-dotenv
