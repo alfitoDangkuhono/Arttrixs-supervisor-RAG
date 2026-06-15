@@ -2,19 +2,22 @@
 
 Pipeline otomatis yang mencari informasi terbaru dari internet (via Tavily
 Search API), mengubahnya menjadi embedding, dan menyimpannya ke PostgreSQL
-(pgvector) untuk digunakan sebagai knowledge base RAG oleh LLM lokal.
+(pgvector) untuk digunakan sebagai knowledge base RAG. Project ini sekarang
+juga dilengkapi dengan API FastAPI sehingga hasil query bisa diakses dari
+hosting atau aplikasi lain.
 
 ## Struktur Project
 
 ```
 rag-supervisor/
+├── app.py          API FastAPI untuk query RAG dan health check
 ├── config/         konfigurasi (.env, topik, model embedding, dll)
 ├── database/       schema SQL & koneksi Postgres
 ├── collectors/     pencarian (Tavily) & fetch konten web
 ├── processing/     chunking & embedding teks
 ├── supervisor/     pipeline utama: search -> chunk -> embed -> simpan
 ├── scheduler/      menjalankan supervisor secara berkala
-├── rag/            retriever untuk LLM lokal (similarity search)
+├── rag/            retriever untuk similarity search
 └── scripts/        utility (init database)
 ```
 
@@ -30,12 +33,15 @@ rag-supervisor/
 
 2. Pastikan PostgreSQL sudah terinstall extension `pgvector`.
 
-3. Copy `.env.example` menjadi `.env`, lalu isi:
+3. Buat file `.env` (atau salin dari `.env.example` bila ada) dan isi:
    - `TAVILY_API_KEY` (daftar gratis di tavily.com)
    - kredensial database (`DB_HOST`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, dll)
+   - `EMBEDDING_MODEL` (opsional, default: `all-MiniLM-L6-v2`)
+   - `EMBEDDING_DIM` (opsional, default: 384)
+   - `MAX_RESULTS_PER_TOPIC` (opsional)
 
    ```bash
-   cp .env.example .env
+   copy .env.example .env
    ```
 
 4. Inisialisasi database (membuat extension, tabel, index):
@@ -58,13 +64,25 @@ TOPICS = [
 
 ## Menjalankan
 
-### Sekali jalan (manual)
+### 1. Jalankan pipeline supervisor
 
 ```bash
 python -m supervisor.pipeline
 ```
 
-### Berkala (scheduler bawaan)
+### 2. Jalankan API FastAPI untuk hosting
+
+```bash
+python -m uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Setelah server berjalan, buka:
+
+- http://localhost:8000/docs
+- http://localhost:8000/health
+- http://localhost:8000/api/search?query=framework%20RAG%20terbaru&top_k=5
+
+### 3. Jalankan scheduler bawaan
 
 ```bash
 python scheduler/scheduler.py
@@ -78,6 +96,33 @@ jam (default 1 jam, atur di `.env`).
 ```bash
 # tambahkan ke crontab -e, contoh tiap jam:
 0 * * * * cd /path/to/rag-supervisor && /path/to/venv/bin/python -m supervisor.pipeline >> logs/supervisor.log 2>&1
+```
+
+## Menggunakan API
+
+Endpoint utama:
+
+```http
+GET /api/search?query=framework RAG terbaru&top_k=5
+```
+
+Response contoh:
+
+```json
+{
+  "query": "framework RAG terbaru",
+  "top_k": 5,
+  "count": 5,
+  "context": "...",
+  "results": [
+    {
+      "text": "...",
+      "source_url": "https://example.com",
+      "title": "...",
+      "similarity": 0.91
+    }
+  ]
+}
 ```
 
 ## Menggunakan untuk RAG (LLM lokal)
