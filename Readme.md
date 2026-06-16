@@ -15,7 +15,7 @@ Pipeline otomatis pengumpulan data untuk RAG (Retrieval-Augmented Generation). M
 ## 📁 Struktur Project
 
 ```
-arttrixs-supervisor-data/
+arttrixs-supervisor-rag/
 ├── app.py                    # API FastAPI untuk query RAG
 ├── Readme.md                 # dokumentasi ini
 ├── requirements.txt          # Python dependencies
